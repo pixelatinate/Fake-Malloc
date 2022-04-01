@@ -158,8 +158,13 @@ void *my_malloc( size_t size ){
     return (void*)( (int)temp + 8 ) ;
 }
 
+// First free node 
+void *free_list_begin(){
+	return head ;
+}
 
-void my_free( void *ptr ){} ;
-void *free_list_begin(){} ;
-void *free_list_next( void *node ){} ;
-void coalesce_free_list(){} ;
+// Finds the next node given a node 
+void *free_list_next( void *node ){
+    struct Node *new = node ;
+    return new->flink ;
+}
