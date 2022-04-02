@@ -25,10 +25,8 @@ struct Node{
 } ;
 
 // Converts to int and compares 
-int compare( void *a, void *b ){
-    int *first  = (int*)(a) ;
-	int *second = (int*)(b) ;
-    return *first - *second ; 
+int compare( const void *first, const void *second ){
+    return ( *(int*)first - *(int*)second ) ;
 }
 
 void *my_malloc( size_t size ){
@@ -51,7 +49,7 @@ void *my_malloc( size_t size ){
 			ptr = 8192 ;
 		}
         head = sbrk( ptr ) ;
-        void * temp = head ;
+        void *temp = head ;
 
         // Check size
 		if( ptr >= ( size + 4 ) ){
@@ -98,7 +96,6 @@ void *my_malloc( size_t size ){
 
     // Make a new node if check returns zero 
 	if( check == 0 ){
-		
         struct Node *new = (void*)( (int)node + size ) ;
 		
         new->size  = node->size - size ;
@@ -180,6 +177,7 @@ void my_free( void *ptr ){
 		new->blink = node ;
 		new->flink = NULL ;
 	} 
+	
 	// Otherwise, add a new node 
 	else{
         struct Node *new = ( ptr - 8 ) ;
@@ -201,9 +199,7 @@ void *free_list_next( void *node ){
 
 // Put it all into one list 
 void coalesce_free_list(){
-	
-    int counter = 0 ;
-	int k = 0 ;
+    int k , counter = 0 ;
 	struct Node *node = head ;
 
 	// Go through list 
@@ -214,29 +210,35 @@ void coalesce_free_list(){
 			i++ ;
 		}
 
-		// Initializes array for pointers and sorts 
+		// Initializes nodeArray for pointers and sorts 
 		int j ;
-		int array[i];
-		node = head ;
+		int nodeArray[i] ;
+		node = head  ;
 		for( j = 0 ; j < i ; j++ ){
-            array[j] = (int)(node) ;
+            nodeArray[j] = (int)(node) ;
 			node = node->flink ;
 		}
-		qsort( array, i, sizeof(int), (__compar_fn_t)(compare) ) ;
+		qsort( nodeArray, i, sizeof(int),(compare) ) ;
 		node = head ;
 		
+		// Set links
         while(1){
             counter = 0 ;
-            for( j = 0; j < ( i - 1 ) ; j++ ){
-                struct Node *a = (struct Node*)array[j] ;
-                for( k = ( j + 1 ) ; k < i ; k++ ){
-					
-                    if (array[j] > 0 && array[k] > 0 && array[j] + a->size == array[k]) {
-						counter++;
-						struct Node * b = (struct Node*)array[k];
-						a->size += b->size;
-						b->size = 0;
-						array[k] = -1;
+            
+			// Link prior node
+			for( j = 0; j < ( i - 1 ) ; j++ ){
+                struct Node *first = (struct Node*)nodeArray[j] ;
+                
+				// Link next node 
+				for( k = ( j + 1 ) ; k < i ; k++ ){
+                    if( nodeArray[j] > 0 && 
+						nodeArray[k] > 0 && 
+						nodeArray[j] + first->size == nodeArray[k] ){
+							counter++ ;
+							struct Node *second = (struct Node*)nodeArray[k] ;
+							first->size = first->size + second->size ;
+							second->size = 0 ;
+							nodeArray[k] = -1 ;
 					}
 				}
 			}
@@ -245,20 +247,20 @@ void coalesce_free_list(){
 				break ;
 			}
 		}
-		struct Node *m;
-		head = (void *) array[0];
-		m = head;
-		m->flink = m->blink = NULL;
-		
-        for (counter = 1; counter < i; counter++){
 
-			if (array[counter] != -1){
-				node = (void *)array[counter];
-				m->flink = node;
-				node->blink = m;
-				m = node;
+		// Resets the list 
+		struct Node *temp ;
+		head = (void*) nodeArray[0] ;
+		temp = head ;
+		temp->flink = temp->blink = NULL ;
+        for( counter = 1; counter < i; counter++ ){
+			if( nodeArray[counter] != -1 ){
+				node = (void*)nodeArray[counter] ;
+				temp->flink = node ;
+				node->blink = temp ;
+				temp = node ;
 			}
 		}
-		m->flink = NULL;
+		temp->flink = NULL ;
 	}
 }
