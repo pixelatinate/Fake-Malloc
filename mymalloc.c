@@ -24,6 +24,13 @@ struct Node{
 	struct Node *flink ;
 } ;
 
+// Converts to int and compares 
+int compare( void *a, void *b ){
+    int *first  = (int*)(a) ;
+	int *second = (int*)(b) ;
+    return *first - *second ; 
+}
+
 void *my_malloc( size_t size ){
 	
     // Make sure the variable is divisible by 8 
@@ -158,6 +165,29 @@ void *my_malloc( size_t size ){
     return (void*)( (int)temp + 8 ) ;
 }
 
+// Put nodes on the free list 
+void my_free( void *ptr ){
+    struct	Node *node ;
+    
+	// Finds the next free node 
+	if( head != NULL ){ 
+		struct Node *new = (void*)(int)( ptr - 8 ) ;
+		node = head ;
+        while( node->flink != NULL ){
+			node = node->flink ;
+		}
+		node->flink = new ;
+		new->blink = node ;
+		new->flink = NULL ;
+	} 
+	// Otherwise, add a new node 
+	else{
+        struct Node *new = ( ptr - 8 ) ;
+		new->flink = new->blink = NULL ;
+		head = new ;
+	}
+}
+
 // First free node 
 void *free_list_begin(){
 	return head ;
@@ -167,4 +197,68 @@ void *free_list_begin(){
 void *free_list_next( void *node ){
     struct Node *new = node ;
     return new->flink ;
+}
+
+// Put it all into one list 
+void coalesce_free_list(){
+	
+    int counter = 0 ;
+	int k = 0 ;
+	struct Node *node = head ;
+
+	// Go through list 
+	if( head != NULL ){
+		int i ;
+		while( node != NULL ){
+			node = node->flink ;
+			i++ ;
+		}
+
+		// Initializes array for pointers and sorts 
+		int j ;
+		int array[i];
+		node = head ;
+		for( j = 0 ; j < i ; j++ ){
+            array[j] = (int)(node) ;
+			node = node->flink ;
+		}
+		qsort( array, i, sizeof(int), (__compar_fn_t)(compare) ) ;
+		node = head ;
+		
+        while(1){
+            counter = 0 ;
+            for( j = 0; j < ( i - 1 ) ; j++ ){
+                struct Node *a = (struct Node*)array[j] ;
+                for( k = ( j + 1 ) ; k < i ; k++ ){
+					
+                    if (array[j] > 0 && array[k] > 0 && array[j] + a->size == array[k]) {
+						counter++;
+						struct Node * b = (struct Node*)array[k];
+						a->size += b->size;
+						b->size = 0;
+						array[k] = -1;
+					}
+				}
+			}
+
+			if (counter == 0){
+				break ;
+			}
+		}
+		struct Node *m;
+		head = (void *) array[0];
+		m = head;
+		m->flink = m->blink = NULL;
+		
+        for (counter = 1; counter < i; counter++){
+
+			if (array[counter] != -1){
+				node = (void *)array[counter];
+				m->flink = node;
+				node->blink = m;
+				m = node;
+			}
+		}
+		m->flink = NULL;
+	}
 }
